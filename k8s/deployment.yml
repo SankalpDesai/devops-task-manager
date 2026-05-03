@@ -31,7 +31,7 @@ spec:
       containers:
         - name: taskapp
           # Our Docker image on Docker Hub
-          image: sankalpdesai/task-manager:latest
+          image: sankalpdesai/task-manager:586269c
           # Always pull latest image from Docker Hub
           imagePullPolicy: Always
           # Our app runs on port 3000
