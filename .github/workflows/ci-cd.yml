@@ -1,41 +1,69 @@
-# Name of our workflow
 name: CI/CD Pipeline
 
-# TRIGGER - when does this workflow run?
-# Answer: every time code is pushed to main branch
 on:
   push:
     branches:
       - main
 
-# JOBS - what work needs to be done?
 jobs:
-
-  # Job 1 - Build and push Docker image
   build-and-push:
-
-    # Which machine should run this job?
-    # ubuntu-latest = GitHub gives us a free Linux machine
     runs-on: ubuntu-latest
 
-    # STEPS - individual tasks inside this job
     steps:
-
-      # Step 1 - Download our code onto the GitHub machine
+      # Step 1 - Checkout code
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2 - Login to Docker Hub
+      # Step 2 - Set image tag using git commit hash
+      # This gives every build a unique tag
+      # Example: sankalpdesai/task-manager:a1b2c3d
+      - name: Set image tag
+        run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+
+      # What is GITHUB_SHA?
+      # Every git commit has a unique ID called SHA
+      # Example: a1b2c3d4e5f6...
+      # We take first 7 characters as our image tag
+      # This way every push creates a unique image version
+
+      # Step 3 - Login to Docker Hub
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # Step 3 - Build the Docker image
+      # Step 4 - Build Docker image with unique tag
       - name: Build Docker image
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/task-manager:latest .
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/task-manager:${{ env.IMAGE_TAG }} .
 
-      # Step 4 - Push image to Docker Hub
+      # Step 5 - Also tag as latest
+      - name: Tag as latest
+        run: docker tag ${{ secrets.DOCKER_USERNAME }}/task-manager:${{ env.IMAGE_TAG }} ${{ secrets.DOCKER_USERNAME }}/task-manager:latest
+
+      # Step 6 - Push both tags to Docker Hub
       - name: Push to Docker Hub
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/task-manager:latest
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/task-manager:${{ env.IMAGE_TAG }}
+          docker push ${{ secrets.DOCKER_USERNAME }}/task-manager:latest
+
+      # Step 7 - Update deployment.yml with new image tag
+      - name: Update Kubernetes deployment
+        run: |
+          sed -i "s|image: ${{ secrets.DOCKER_USERNAME }}/task-manager:.*|image: ${{ secrets.DOCKER_USERNAME }}/task-manager:${{ env.IMAGE_TAG }}|" k8s/deployment.yml
+
+      # What is sed?
+      # sed = stream editor, finds and replaces text in files
+      # -i = edit file in place
+      # s|old|new| = replace old with new
+      # So we replace the image tag in deployment.yml
+      # with the new commit hash tag
+
+      # Step 8 - Commit updated deployment.yml back to GitHub
+      - name: Commit updated deployment
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add k8s/deployment.yml
+          git commit -m "CI: update image tag to ${{ env.IMAGE_TAG }}"
+          git push
