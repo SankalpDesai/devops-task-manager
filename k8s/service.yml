@@ -1,0 +1,29 @@
+# What kind of Kubernetes object is this?
+apiVersion: v1
+kind: Service
+
+# Metadata - name for this service
+metadata:
+  name: taskapp-service
+
+# Specification
+spec:
+
+  # Type of service
+  # NodePort = accessible from outside the cluster
+  type: NodePort
+
+  # Which pods should this service send traffic to?
+  # Answer: pods with label "app: taskapp"
+  selector:
+    app: taskapp
+
+  # Port configuration
+  ports:
+    - protocol: TCP
+      # Port the service listens on inside cluster
+      port: 80
+      # Port on the pod to forward traffic to
+      targetPort: 3000
+      # Port on your machine to access the app
+      nodePort: 30080

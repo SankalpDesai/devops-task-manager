@@ -1,0 +1,39 @@
+# What kind of Kubernetes object is this?
+apiVersion: apps/v1
+kind: Deployment
+
+# Metadata - name and labels for this deployment
+metadata:
+  name: taskapp-deployment
+  labels:
+    app: taskapp
+
+# Specification - what do we want?
+spec:
+
+  # Run 2 copies of our app simultaneously
+  replicas: 2
+
+  # Which pods does this deployment manage?
+  # It manages pods that have label "app: taskapp"
+  selector:
+    matchLabels:
+      app: taskapp
+
+  # Template for creating pods
+  template:
+    metadata:
+      labels:
+        app: taskapp
+
+    # What runs inside each pod?
+    spec:
+      containers:
+        - name: taskapp
+          # Our Docker image on Docker Hub
+          image: sankalpdesai/task-manager:latest
+          # Always pull latest image from Docker Hub
+          imagePullPolicy: Always
+          # Our app runs on port 3000
+          ports:
+            - containerPort: 3000
